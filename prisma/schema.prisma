@@ -1,0 +1,513 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AdminSession {
+  id        String    @id @default(cuid())
+  userId    String
+  userEmail String
+  userName  String?
+  provider  String
+  ipAddress String?
+  userAgent String?
+  loginAt   DateTime  @default(now())
+  logoutAt  DateTime?
+  expiresAt DateTime
+  isActive  Boolean   @default(true)
+
+  @@index([isActive])
+  @@index([loginAt])
+  @@index([userEmail])
+  @@index([userId])
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  bookingNumber      String        @unique
+  customerId         String?
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  customerAddress    String?
+  serviceType        ServiceType   @default(CITY_RIDE)
+  tripType           TripType      @default(ONE_WAY)
+  vehicleTypeId      String
+  vehicleId          String?
+  driverId           String?
+  adults             Int?
+  children           Int?
+  durationHours      Int?
+  agreedToTerms      Boolean       @default(false)
+  pickupLocation     String
+  pickupAddress      String
+  pickupLat          Float?
+  pickupLng          Float?
+  pickupDate         DateTime
+  pickupTime         String
+  dropoffLocation    String
+  dropoffAddress     String
+  dropoffLat         Float?
+  dropoffLng         Float?
+  dropoffDate        DateTime?
+  dropoffTime        String?
+  distance           Float?
+  duration           Int?
+  estimatedPrice     Float
+  finalPrice         Float?
+  promoCode          String?
+  discountAmount     Float?
+  discountPercent    Float?
+  passengers         Int           @default(1)
+  luggage            Int           @default(0)
+  flightNumber       String?
+  specialRequests    String?
+  notes              String?
+  language           String        @default("fr")
+  sourcePlatform     String?
+  status             BookingStatus @default(PENDING)
+  paymentStatus      PaymentStatus @default(PENDING)
+  paymentMethod      String?
+  stripeSessionId    String?
+  calendarEventId    String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  confirmedAt        DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  user               User?         @relation(fields: [customerId], references: [id])
+  driver             Driver?       @relation(fields: [driverId], references: [id])
+  vehicle            Vehicle?      @relation(fields: [vehicleId], references: [id])
+  vehicleType        VehicleType   @relation(fields: [vehicleTypeId], references: [id])
+  EmailLog           EmailLog[]
+  invoice            Invoice?
+  quote              Quote?
+
+  @@index([bookingNumber])
+  @@index([customerId])
+  @@index([driverId])
+  @@index([pickupDate])
+  @@index([status])
+  @@index([vehicleId])
+  @@index([vehicleTypeId])
+}
+
+model BrandingSettings {
+  id               String   @id @default(cuid())
+  tenantId         String?  @unique
+  companyName      String
+  companyShortName String
+  companyEmail     String
+  companyPhone     String
+  companyAddress   String
+  companySIRET     String?
+  companyVAT       String?
+  logo             String   @default("/images/logo.png")
+  favicon          String   @default("/favicon.ico")
+  primaryColor     String   @default("#0A1128")
+  accentColor      String   @default("#DAA520")
+  fontFamily       String   @default("Montserrat")
+  instagramUrl     String?
+  facebookUrl      String?
+  linkedinUrl      String?
+  twitterUrl       String?
+  domain           String?
+  baseUrl          String?
+  enableWhatsapp   Boolean  @default(true)
+  enableReviews    Boolean  @default(true)
+  enableStripe     Boolean  @default(true)
+  enableCalendar   Boolean  @default(true)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([tenantId])
+}
+
+model Driver {
+  id                 String               @id @default(cuid())
+  userId             String               @unique
+  licenseNumber      String               @unique
+  licenseExpiry      DateTime
+  rating             Float                @default(5.0)
+  totalTrips         Int                  @default(0)
+  status             VehicleStatus        @default(AVAILABLE)
+  vehicleId          String?
+  experience         Int?
+  languages          String[]             @default([])
+  emergencyPhone     String?
+  address            String?
+  city               String?
+  country            String?              @default("France")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  companyAddress     String?
+  companyEmail       String?
+  companyLogo        String?
+  companyName        String?
+  companyPhone       String?
+  companySIRET       String?
+  companyVAT         String?
+  bookings           Booking[]
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle            Vehicle?             @relation(fields: [vehicleId], references: [id])
+  DriverAvailability DriverAvailability[]
+
+  @@index([userId])
+  @@index([vehicleId])
+}
+
+model DriverAvailability {
+  id        String   @id @default(cuid())
+  driverId  String
+  date      DateTime
+  startTime String
+  endTime   String
+  isBooked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, date])
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  bookingId String?
+  recipient String
+  subject   String
+  body      String
+  type      String
+  status    String   @default("sent")
+  sentAt    DateTime @default(now())
+  error     String?
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([recipient])
+  @@index([type])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  bookingId     String        @unique
+  subtotal      Float
+  tax           Float         @default(0)
+  discount      Float         @default(0)
+  total         Float
+  amountPaid    Float         @default(0)
+  amountDue     Float
+  paymentMethod String?
+  paymentStatus PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  notes         String?
+  dueDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([invoiceNumber])
+}
+
+model PricingTier {
+  id            String      @id @default(cuid())
+  vehicleTypeId String
+  minKm         Float
+  maxKm         Float
+  price         Float
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  vehicleType   VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleTypeId, minKm, maxKm])
+}
+
+model PromoCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  description   String?
+  discountType  String    @default("percentage")
+  discountValue Float
+  maxUses       Int?
+  usedCount     Int       @default(0)
+  validFrom     DateTime  @default(now())
+  validUntil    DateTime?
+  minPurchase   Float?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model Quote {
+  id                String      @id @default(cuid())
+  quoteNumber       String      @unique
+  customerName      String?
+  customerPhone     String
+  customerEmail     String?
+  pickupLocation    String
+  pickupAddress     String
+  pickupLat         Float?
+  pickupLng         Float?
+  dropoffLocation   String?
+  dropoffAddress    String?
+  dropoffLat        Float?
+  dropoffLng        Float?
+  pickupDate        DateTime
+  pickupTime        String
+  dropoffDate       DateTime?
+  dropoffTime       String?
+  serviceType       ServiceType @default(CITY_RIDE)
+  tripType          TripType    @default(ONE_WAY)
+  vehicleTypeId     String
+  durationHours     Int?
+  distance          Float?
+  duration          Int?
+  calculatedPrice   Float
+  finalPrice        Float?
+  isPriceModified   Boolean     @default(false)
+  passengers        Int         @default(1)
+  luggage           Int         @default(0)
+  specialRequests   String?
+  notes             String?
+  status            QuoteStatus @default(PENDING)
+  validUntil        DateTime
+  source            String      @default("whatsapp")
+  whatsappMessageId String?
+  rawMessage        String?
+  bookingId         String?     @unique
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  approvedAt        DateTime?
+  sentAt            DateTime?
+  booking           Booking?    @relation(fields: [bookingId], references: [id])
+  vehicleType       VehicleType @relation(fields: [vehicleTypeId], references: [id])
+
+  @@index([createdAt])
+  @@index([customerPhone])
+  @@index([quoteNumber])
+  @@index([status])
+  @@index([vehicleTypeId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Settings {
+  id               String   @id @default(cuid())
+  siteName         String   @default("TaxiLimo Booking")
+  siteEmail        String
+  sitePhone        String?
+  siteAddress      String?
+  currency         String   @default("USD")
+  taxRate          Float    @default(0)
+  bookingPrefix    String   @default("BK")
+  invoicePrefix    String   @default("INV")
+  smtpHost         String?
+  smtpPort         Int?
+  smtpUser         String?
+  smtpPassword     String?
+  emailFrom        String?
+  businessHours    Json?
+  autoAssignDriver Boolean  @default(false)
+  requireApproval  Boolean  @default(true)
+  enablePayments   Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  emailVerified DateTime?
+  image         String?
+  Account       Account[]
+  bookings      Booking[]
+  driver        Driver?
+  sessions      Session[]
+
+  @@index([email])
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  vehicleTypeId   String
+  make            String
+  model           String
+  year            Int
+  color           String
+  licensePlate    String        @unique
+  vin             String?       @unique
+  status          VehicleStatus @default(AVAILABLE)
+  currentMileage  Int?
+  lastService     DateTime?
+  nextService     DateTime?
+  insurance       String?
+  insuranceExpiry DateTime?
+  images          String[]
+  features        String[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  bookings        Booking[]
+  drivers         Driver[]
+  vehicleType     VehicleType   @relation(fields: [vehicleTypeId], references: [id])
+
+  @@index([licensePlate])
+  @@index([vehicleTypeId])
+}
+
+model VehicleType {
+  id                       String        @id @default(cuid())
+  name                     String        @unique
+  description              String?
+  capacity                 Int
+  luggage                  Int
+  basePrice                Float         @default(0)
+  perKmRate                Float         @default(0)
+  perHourRate              Float         @default(0)
+  perMileRate              Float         @default(0)
+  minimumFare              Float         @default(0)
+  aboveMaxKmBasePrice      Float?        @default(0)
+  aboveMaxKmPerKm          Float?        @default(3.5)
+  airportWaitFreeMinutes   Int?          @default(60)
+  airportWaitPricePer15Min Float?        @default(20)
+  normalWaitFreeMinutes    Int?          @default(15)
+  normalWaitPricePer15Min  Float?        @default(20)
+  image                    String?
+  features                 String[]
+  isActive                 Boolean       @default(true)
+  sortOrder                Int           @default(0)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  bookings                 Booking[]
+  pricingTiers             PricingTier[]
+  quotes                   Quote[]
+  vehicles                 Vehicle[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum QuoteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum ServiceType {
+  CITY_RIDE
+  AIRPORT_TRANSFER
+  HOURLY_HIRE
+}
+
+enum TripType {
+  ONE_WAY
+  ROUND_TRIP
+  HOURLY
+  RETURN_NEW_RIDE
+}
+
+enum UserRole {
+  ADMIN
+  DRIVER
+  CUSTOMER
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  UNAVAILABLE
+  MAINTENANCE
+}
+
+// WhatsApp Session for storing QR code and connection status (for Vercel serverless)
+model WhatsAppSession {
+  id        String   @id @default("whatsapp-session")
+  qrCode    String?  @db.Text
+  status    String   @default("initializing") // initializing, waiting, ready, disconnected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("WhatsAppSession")
+}
+
+// WhatsApp Conversation State - Track ongoing conversations with clients
+model WhatsAppConversation {
+  id            String   @id @default(cuid())
+  phoneNumber   String   @unique
+  state         String   @default("collecting_info") // collecting_info, confirming, completed
+  currentField  String? // Which field we're currently asking for
+  collectedData Json // Store all collected information as JSON
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([state])
+  @@map("WhatsAppConversation")
+}
