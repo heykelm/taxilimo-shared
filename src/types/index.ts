@@ -19,6 +19,13 @@ export interface Booking {
   distance?: number
   duration?: number
   estimatedPrice: number
+  finalPrice?: number
+  promoCode?: string
+  discountAmount?: number
+  discountPercent?: number
+  depositAmount?: number
+  depositPercent?: number
+  requiresDeposit?: boolean
   status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   createdAt: Date
@@ -100,11 +107,17 @@ export interface CreateBookingRequest {
   dropoffLng?: number
   distance?: number
   duration?: number
+  returnDistance?: number
+  returnDuration?: number
   passengers?: number
   luggage?: number
   specialRequests?: string
-  paymentMethod?: 'stripe' | 'cash' | 'card' | 'bank_transfer'
+  paymentMethod?: 'stripe' | 'paypal' | 'cash' | 'card' | 'bank_transfer'
   promoCode?: string
+  discountAmount?: number
+  discountPercent?: number
+  depositAmount?: number
+  requiresDeposit?: boolean
 }
 
 export interface CreateQuoteRequest {
