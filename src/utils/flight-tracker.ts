@@ -25,7 +25,10 @@ async function getAmadeusToken(clientId: string, clientSecret: string): Promise<
     return amadeusToken.token
   }
 
-  const response = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
+  const isProd = process.env.AMADEUS_ENV === 'production'
+  const baseUrl = isProd ? 'https://api.amadeus.com' : 'https://test.api.amadeus.com'
+
+  const response = await fetch(`${baseUrl}/v1/security/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -36,7 +39,8 @@ async function getAmadeusToken(clientId: string, clientSecret: string): Promise<
   })
 
   if (!response.ok) {
-    throw new Error(`Amadeus auth error: ${response.status} ${response.statusText}`)
+    const errorBody = await response.text().catch(() => 'No error body')
+    throw new Error(`Amadeus auth error (${isProd ? 'prod' : 'test'}): ${response.status} ${response.statusText} - ${errorBody}`)
   }
 
   const data = (await response.json()) as { access_token: string; expires_in: number }
@@ -45,7 +49,7 @@ async function getAmadeusToken(clientId: string, clientSecret: string): Promise<
     expiresAt: Date.now() + data.expires_in * 1000,
   }
 
-  return amadeusToken!.token
+  return amadeusToken.token
 }
 
 function normalizeFlightNumber(flightNumber: string): { carrierCode: string; flightNumber: string; full: string } {
