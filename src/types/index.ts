@@ -116,6 +116,7 @@ export interface FlightStatusInfo {
   departure: FlightStatusLeg
   arrival: FlightStatusLeg
   lastUpdated?: string
+  provider?: 'amadeus' | 'aviationstack'
   raw?: Record<string, unknown>
 }
 

@@ -16,6 +16,7 @@ export interface FlightStatusParams {
   amadeusClientSecret?: string
   cacheTtlMs?: number
   preferredProvider?: 'amadeus' | 'aviationstack'
+  strictProvider?: boolean
 }
 
 let amadeusToken: { token: string; expiresAt: number } | null = null
@@ -112,6 +113,7 @@ function mapAviationStackEntry(entry: any): FlightStatusInfo {
       delayMinutes: typeof arrival.delay === 'number' ? arrival.delay : null,
     },
     lastUpdated: entry.updated ?? entry.estimated ?? entry.arrival?.estimated ?? null,
+    provider: 'aviationstack',
     raw: entry,
   }
 }
@@ -143,6 +145,7 @@ function mapAmadeusEntry(entry: any): FlightStatusInfo {
       scheduledTime: arrival.at,
     },
     lastUpdated: new Date().toISOString(),
+    provider: 'amadeus',
     raw: entry,
   }
 }
@@ -337,7 +340,7 @@ export async function getFlightStatusFromAviationStack({
 }
 
 export async function getFlightStatus(params: FlightStatusParams): Promise<FlightStatusInfo | null> {
-  const { preferredProvider = 'amadeus' } = params
+  const { preferredProvider = 'amadeus', strictProvider = false } = params
 
   const hasAmadeus = !!(params.amadeusClientId?.trim() && params.amadeusClientSecret?.trim())
   const hasAviationStack = !!params.apiKey?.trim()
@@ -346,8 +349,13 @@ export async function getFlightStatus(params: FlightStatusParams): Promise<Fligh
     try {
       const amadeusResult = await getFlightStatusFromAmadeus(params)
       if (amadeusResult) return amadeusResult
+
+      // If Amadeus returned null (definitive 404) and we are in strict mode, stop here
+      if (strictProvider) return null
     } catch (error: any) {
-      console.error('Amadeus flight tracking failed, falling back to AviationStack if available:', error.message || error)
+      console.error('Amadeus flight tracking failed:', error.message || error)
+      // If preferred failed and we are in strict mode, stop here
+      if (strictProvider) return null
     }
   }
 
