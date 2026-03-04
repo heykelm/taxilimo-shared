@@ -152,6 +152,12 @@ const CARRIER_CODE_MAPPING: Record<string, string> = {
   'KLM': 'KL', // KLM
   'SWR': 'LX', // Swiss
   'AIB': 'AIB', // Airbus (test)
+  'VLG': 'VY', // Vueling
+  'IBE': 'IB', // Iberia
+  'RYR': 'FR', // Ryanair
+  'SIA': 'SQ', // Singapore Airlines
+  'QTR': 'QR', // Qatar Airways
+  'ETD': 'EY', // Etihad
 }
 
 function getNormalizedCarrier(code: string): string {
@@ -167,6 +173,7 @@ function getNormalizedCarrier(code: string): string {
 export async function getFlightStatusFromAmadeus({
   flightNumber,
   flightDate,
+  arrivalIata,
   amadeusClientId,
   amadeusClientSecret,
   cacheTtlMs = DEFAULT_TTL,
@@ -183,7 +190,7 @@ export async function getFlightStatusFromAmadeus({
   const carrierCode = getNormalizedCarrier(normalized.carrierCode)
   const fullFlightNumber = normalized.flightNumber
 
-  const cacheKey = `amadeus_${carrierCode}${fullFlightNumber}_${normalizedDate}`
+  const cacheKey = `amadeus_${carrierCode}${fullFlightNumber}_${normalizedDate}_${arrivalIata ?? 'ANY'}`
 
   const cached = cache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) {
@@ -193,7 +200,11 @@ export async function getFlightStatusFromAmadeus({
   const token = await getAmadeusToken(amadeusClientId, amadeusClientSecret)
 
   const fetchFromAmadeus = async (carrier: string, number: string) => {
-    const url = new URL('https://test.api.amadeus.com/v2/schedule/flights')
+    // Check if we should use production or test environment
+    const isProd = process.env.AMADEUS_ENV === 'production'
+    const baseUrl = isProd ? 'https://api.amadeus.com' : 'https://test.api.amadeus.com'
+    const url = new URL(`${baseUrl}/v2/schedule/flights`)
+
     url.searchParams.set('carrierCode', carrier)
     url.searchParams.set('flightNumber', number)
     url.searchParams.set('scheduledDepartureDate', normalizedDate)
@@ -211,7 +222,24 @@ export async function getFlightStatusFromAmadeus({
     }
 
     const payload = (await response.json()) as { data?: any[] }
-    return payload.data?.[0] ? mapAmadeusEntry(payload.data[0]) : null
+    const flights = payload.data || []
+
+    if (flights.length === 0) return null
+
+    // If arrivalIata is provided, try to find a match in the data
+    if (arrivalIata) {
+      const match = flights.find(f => {
+        const segments = f.segments || []
+        return segments.some((s: any) =>
+          s.arrival?.iataCode === arrivalIata.toUpperCase() ||
+          s.departure?.iataCode === arrivalIata.toUpperCase()
+        )
+      })
+      if (match) return mapAmadeusEntry(match)
+    }
+
+    // Default to first result
+    return mapAmadeusEntry(flights[0])
   }
 
   // 1. Initial attempt with normalized carrier
@@ -247,6 +275,7 @@ export async function getFlightStatusFromAviationStack({
 
   const normalized = normalizeFlightNumber(flightNumber)
   const normalizedDate = normalizeDate(flightDate)
+  // Cache key includes arrivalIata because we filter locally now
   const cacheKey = `avstack_${normalized.full}_${normalizedDate}_${arrivalIata ?? 'ANY'}`
 
   const cached = cache.get(cacheKey)
@@ -258,9 +287,10 @@ export async function getFlightStatusFromAviationStack({
   url.searchParams.set('access_key', apiKey)
   url.searchParams.set('flight_iata', normalized.full)
   url.searchParams.set('flight_date', normalizedDate)
-  if (arrivalIata) {
-    url.searchParams.set('arr_iata', arrivalIata.toUpperCase())
-  }
+
+  // Note: We intentionally DO NOT send arr_iata to the API anymore.
+  // This avoids cases where the API fails to filter correctly or uses different codes.
+  // We fetch all flights for this number and date, then filter here.
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -283,9 +313,12 @@ export async function getFlightStatusFromAviationStack({
   const flights: any[] = Array.isArray(payload.data) ? payload.data : []
   let matchingFlight: any | undefined = flights[0]
 
-  if (arrivalIata) {
+  if (arrivalIata && flights.length > 0) {
+    const target = arrivalIata.toUpperCase()
     matchingFlight = flights.find(
-      (flight) => (flight.arrival?.iata ?? flight.arrival?.icao) === arrivalIata.toUpperCase()
+      (flight) =>
+        (flight.arrival?.iata === target || flight.arrival?.icao === target) ||
+        (flight.departure?.iata === target || flight.departure?.icao === target)
     ) || flights[0]
   }
 
