@@ -84,6 +84,8 @@ model Booking {
   passengers         Int           @default(1)
   luggage            Int           @default(0)
   flightNumber       String?
+  flightStatus       Json?
+  flightStatusUpdatedAt DateTime?
   specialRequests    String?
   notes              String?
   language           String        @default("fr")

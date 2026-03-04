@@ -273,3 +273,5 @@ export function calculateTripPriceWithTiers(
   return calculateTripPrice(distance, perKmRate, minimumFare, basePrice)
 }
 
+export * from './flight-tracker'
+

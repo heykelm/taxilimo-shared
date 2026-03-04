@@ -30,6 +30,9 @@ export interface Booking {
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   createdAt: Date
   updatedAt: Date
+  flightNumber?: string | null
+  flightStatus?: FlightStatusInfo | Record<string, unknown> | null
+  flightStatusUpdatedAt?: Date | null
 }
 
 export interface Quote {
@@ -85,6 +88,35 @@ export interface Customer {
   address?: string
   createdAt: Date
   updatedAt: Date
+}
+
+export interface FlightStatusLeg {
+  airport: {
+    name?: string | null
+    iata?: string | null
+    terminal?: string | null
+    gate?: string | null
+    baggage?: string | null
+    timezone?: string | null
+    city?: string | null
+  }
+  scheduledTime?: string | null
+  estimatedTime?: string | null
+  actualTime?: string | null
+  delayMinutes?: number | null
+}
+
+export interface FlightStatusInfo {
+  flightNumber: string
+  airline?: {
+    name?: string | null
+    iata?: string | null
+  }
+  status?: string | null
+  departure: FlightStatusLeg
+  arrival: FlightStatusLeg
+  lastUpdated?: string
+  raw?: Record<string, unknown>
 }
 
 // API Request/Response types
