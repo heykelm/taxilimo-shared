@@ -125,30 +125,40 @@ function mapAviationStackEntry(entry: any): FlightStatusInfo {
 }
 
 function mapAmadeusEntry(entry: any): FlightStatusInfo {
-  const segments = entry.segments?.[0] || {}
-  const departure = segments.departure ?? {}
-  const arrival = segments.arrival ?? {}
+  const flightPoints = entry.flightPoints || []
+  const depPoint = flightPoints[0] || {}
+  const arrPoint = flightPoints[flightPoints.length - 1] || {}
+
+  let status: string | null = null
+  const depDelay = depPoint.departure?.timings?.find((t: any) => t.qualifier === 'STD')?.delays?.[0]?.duration
+  const arrDelay = arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'STA')?.delays?.[0]?.duration
+
+  if (depDelay || arrDelay) status = 'DELAYED'
 
   return {
     flightNumber: `${entry.carrierCode}${entry.flightNumber}`,
     airline: {
-      name: null, // Amadeus v2 schedule doesn't always provide airline name in the main object
+      name: null,
       iata: entry.carrierCode,
     },
-    status: null, // Amadeus status is usually mapped from specific segment flags or if it's in the response
+    status: status || entry.status || null,
     departure: {
       airport: {
-        iata: departure.iataCode,
-        terminal: departure.terminal,
+        iata: depPoint.iataCode,
+        terminal: depPoint.departure?.terminal?.code,
+        gate: depPoint.departure?.gate?.mainGate,
       },
-      scheduledTime: departure.at,
+      scheduledTime: depPoint.departure?.timings?.find((t: any) => t.qualifier === 'STD')?.value,
+      delayMinutes: depDelay ? parseInt(depDelay.replace('PT', '').replace('M', '')) : null,
     },
     arrival: {
       airport: {
-        iata: arrival.iataCode,
-        terminal: arrival.terminal,
+        iata: arrPoint.iataCode,
+        terminal: arrPoint.arrival?.terminal?.code,
+        gate: arrPoint.arrival?.gate?.mainGate,
       },
-      scheduledTime: arrival.at,
+      scheduledTime: arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'STA')?.value,
+      delayMinutes: arrDelay ? parseInt(arrDelay.replace('PT', '').replace('M', '')) : null,
     },
     lastUpdated: new Date().toISOString(),
     provider: 'amadeus',
@@ -156,31 +166,24 @@ function mapAmadeusEntry(entry: any): FlightStatusInfo {
   }
 }
 
-const CARRIER_CODE_MAPPING: Record<string, string> = {
-  'AFR': 'AF', // Air France
-  'BAW': 'BA', // British Airways
-  'DLH': 'LH', // Lufthansa
-  'UAE': 'EK', // Emirates
-  'THY': 'TK', // Turkish Airlines
-  'KLM': 'KL', // KLM
-  'SWR': 'LX', // Swiss
-  'AIB': 'AIB', // Airbus (test)
-  'VLG': 'VY', // Vueling
-  'IBE': 'IB', // Iberia
-  'RYR': 'FR', // Ryanair
-  'SIA': 'SQ', // Singapore Airlines
-  'QTR': 'QR', // Qatar Airways
-  'ETD': 'EY', // Etihad
+const ICAO_TO_IATA: Record<string, string> = {
+  'EZY': 'U2', 'AFR': 'AF', 'BAW': 'BA', 'DLH': 'LH', 'UAE': 'EK',
+  'RYR': 'FR', 'VLG': 'VY', 'IBE': 'IB', 'TRA': 'HV', 'SWR': 'LX',
+  'THY': 'TK', 'VAP': 'V7', 'TVF': 'TO', 'AAL': 'AA', 'DAL': 'DL',
+  'UAL': 'UA', 'SIA': 'SQ', 'QFA': 'QF', 'KLM': 'KL', 'LZA': 'LO',
+  'EJU': 'U2', 'EZS': 'U2', 'RBG': '8B', 'ABY': 'G9', 'WZZ': 'W6',
+  'RAM': 'AT', 'AHY': 'J2', 'ETH': 'ET', 'QTR': 'QR', 'FIN': 'AY',
+  'SAS': 'SK', 'AUA': 'OS', 'BEL': 'SN', 'TAP': 'TP', 'LOT': 'LO',
+  'VOE': 'V7', 'ACA': 'AC', 'CCM': 'XK', 'BTI': 'BT', 'TSC': 'TS',
+  'EIN': 'EI', 'ELY': 'LY', 'EWG': 'EW', 'EXS': 'LS', 'LGL': 'LG',
+  'NOZ': 'DY', 'IBK': 'D8', 'NSZ': 'DH', 'PGT': 'PC', 'SVA': 'SV',
+  'TVS': 'QS', 'ROT': 'RO', 'TJT': 'T7', 'WIF': 'WF', 'DAH': 'AH',
+  'TAR': 'TU', 'ITY': 'AZ',
 }
 
-function getNormalizedCarrier(code: string): string {
-  const upper = code.trim().toUpperCase()
-  // 1. easyJet variants fallback to U2
-  if (['EZY', 'EJU', 'EZS'].includes(upper)) {
-    return 'U2'
-  }
-  // 2. Map 3-letter ICAO to 2-letter IATA if known
-  return CARRIER_CODE_MAPPING[upper] || upper
+function normalizeCarrierCode(code: string): string {
+  const upper = code.replace(/[^A-Z0-9]/g, '').toUpperCase();
+  return ICAO_TO_IATA[upper] || upper;
 }
 
 export async function getFlightStatusFromAmadeus({
@@ -200,7 +203,7 @@ export async function getFlightStatusFromAmadeus({
 
   const normalized = normalizeFlightNumber(flightNumber)
   const normalizedDate = normalizeDate(flightDate)
-  const carrierCode = getNormalizedCarrier(normalized.carrierCode)
+  const carrierCode = normalizeCarrierCode(normalized.carrierCode)
   const fullFlightNumber = normalized.flightNumber
 
   const cacheKey = `amadeus_${carrierCode}${fullFlightNumber}_${normalizedDate}_${arrivalIata ?? 'ANY'}`
@@ -213,56 +216,66 @@ export async function getFlightStatusFromAmadeus({
   const token = await getAmadeusToken(amadeusClientId, amadeusClientSecret)
 
   const fetchFromAmadeus = async (carrier: string, number: string) => {
-    // Check if we should use production or test environment
-    const isProd = process.env.AMADEUS_ENV === 'production'
-    const baseUrl = isProd ? 'https://api.amadeus.com' : 'https://test.api.amadeus.com'
-    const url = new URL(`${baseUrl}/v2/schedule/flights`)
+    try {
+      // Check if we should use production or test environment
+      const isProd = process.env.AMADEUS_ENV === 'production'
+      const baseUrl = isProd ? 'https://api.amadeus.com' : 'https://test.api.amadeus.com'
+      const url = new URL(`${baseUrl}/v2/schedule/flights`)
 
-    url.searchParams.set('carrierCode', carrier)
-    url.searchParams.set('flightNumber', number)
-    url.searchParams.set('scheduledDepartureDate', normalizedDate)
+      url.searchParams.set('carrierCode', carrier)
+      url.searchParams.set('flightNumber', number)
+      url.searchParams.set('scheduledDepartureDate', normalizedDate)
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      if (response.status === 404) return null
-      throw new Error(`Amadeus flight tracker: API error: ${response.status} ${response.statusText}`)
-    }
-
-    const payload = (await response.json()) as { data?: any[] }
-    const flights = payload.data || []
-
-    if (flights.length === 0) return null
-
-    // If arrivalIata is provided, try to find a match in the data
-    if (arrivalIata) {
-      const match = flights.find(f => {
-        const segments = f.segments || []
-        return segments.some((s: any) =>
-          s.arrival?.iataCode === arrivalIata.toUpperCase() ||
-          s.departure?.iataCode === arrivalIata.toUpperCase()
-        )
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       })
-      if (match) return mapAmadeusEntry(match)
-    }
 
-    // Default to first result
-    return mapAmadeusEntry(flights[0])
+      if (!response.ok) {
+        if (response.status === 404) return null
+        throw new Error(`Amadeus flight tracker: API error: ${response.status} ${response.statusText}`)
+      }
+
+      const payload = (await response.json()) as { data?: any[] }
+      const flights = payload.data || []
+
+      if (flights.length === 0) return null
+
+      // If arrivalIata is provided, try to find a match in the data
+      if (arrivalIata) {
+        const match = flights.find(f => {
+          const points = f.flightPoints || []
+          return points.some((p: any) => p.iataCode === arrivalIata.toUpperCase())
+        })
+        if (match) return mapAmadeusEntry(match)
+      }
+
+      // Default to first result
+      return mapAmadeusEntry(flights[0])
+    } catch (err) {
+      return null
+    }
   }
 
   // 1. Initial attempt with normalized carrier
   let mapped = await fetchFromAmadeus(carrierCode, fullFlightNumber)
 
-  // 2. Retry without leading zeros if 404
-  if (!mapped && /^[0]+/.test(fullFlightNumber)) {
-    const strippedNumber = fullFlightNumber.replace(/^[0]+/, '')
+  // 2. Fallback: original carrier
+  if (!mapped && normalized.carrierCode !== carrierCode) {
+    mapped = await fetchFromAmadeus(normalized.carrierCode, fullFlightNumber)
+  }
+
+  // 3. Fallback: easyJet variants -> U2
+  if (!mapped && ['EZS', 'EJU', 'EZY', 'DS'].includes(normalized.carrierCode)) {
+    mapped = await fetchFromAmadeus('U2', fullFlightNumber)
+  }
+
+  // 4. Fallback: Emirates leading zeros
+  if (!mapped && carrierCode === 'EK' && fullFlightNumber.startsWith('0')) {
+    const strippedNumber = fullFlightNumber.replace(/^0+/, '')
     if (strippedNumber !== fullFlightNumber) {
-      console.log(`[Amadeus] Retrying without leading zeros: ${carrierCode} ${fullFlightNumber} -> ${strippedNumber}`)
       mapped = await fetchFromAmadeus(carrierCode, strippedNumber)
     }
   }
