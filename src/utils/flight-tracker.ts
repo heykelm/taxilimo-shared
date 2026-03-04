@@ -124,10 +124,28 @@ function mapAviationStackEntry(entry: any): FlightStatusInfo {
   }
 }
 
+const AIRLINE_NAMES: Record<string, string> = {
+  'EK': 'Emirates', 'AF': 'Air France', 'U2': 'EasyJet', 'LH': 'Lufthansa',
+  'BA': 'British Airways', 'TK': 'Turkish Airlines', 'QR': 'Qatar Airways',
+  'EY': 'Etihad', 'FR': 'Ryanair', 'VY': 'Vueling', 'TO': 'Transavia',
+  'LX': 'Swiss', 'OS': 'Austrian', 'SN': 'Brussels Airlines', 'SK': 'SAS',
+  'AY': 'Finnair', 'TP': 'TAP Portugal', 'LO': 'LOT Polish', 'KM': 'Air Malta',
+  'JU': 'Air Serbia', 'OU': 'Croatia Airlines', 'A3': 'Aegean', 'AZ': 'ITA Airways',
+  'UX': 'Air Europa', 'IB': 'Iberia', 'AA': 'American Airlines', 'DL': 'Delta',
+  'UA': 'United', 'AC': 'Air Canada', 'AT': 'Royal Air Maroc', 'TU': 'Tunisair',
+  'AH': 'Air Algérie', 'BJ': 'Nouvelair', 'V7': 'Volotea', 'XK': 'Air Corsica',
+  'BT': 'Air Baltic', 'TS': 'Air Transat', 'EI': 'Aer Lingus', 'LY': 'El Al',
+  'EW': 'Eurowings', 'LS': 'Jet2', 'LG': 'Luxair', 'DY': 'Norwegian',
+  'PC': 'Pegasus', 'SV': 'Saudia', 'QS': 'Smartwings', 'RO': 'Tarom',
+  'T7': 'Twin Jet', 'WF': 'Wideroe',
+}
+
 function mapAmadeusEntry(entry: any): FlightStatusInfo {
   const flightPoints = entry.flightPoints || []
   const depPoint = flightPoints[0] || {}
   const arrPoint = flightPoints[flightPoints.length - 1] || {}
+  const carrierCode = entry.flightDesignator?.carrierCode || entry.carrierCode || ''
+  const flightNumber = entry.flightDesignator?.flightNumber || entry.flightNumber || ''
 
   let status: string | null = null
   const depDelay = depPoint.departure?.timings?.find((t: any) => t.qualifier === 'STD')?.delays?.[0]?.duration
@@ -135,11 +153,14 @@ function mapAmadeusEntry(entry: any): FlightStatusInfo {
 
   if (depDelay || arrDelay) status = 'DELAYED'
 
+  const scheduledDep = depPoint.departure?.timings?.find((t: any) => t.qualifier === 'STD')?.value
+  const scheduledArr = arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'STA')?.value
+
   return {
-    flightNumber: `${entry.carrierCode}${entry.flightNumber}`,
+    flightNumber: `${carrierCode}${flightNumber}`,
     airline: {
-      name: null,
-      iata: entry.carrierCode,
+      name: AIRLINE_NAMES[carrierCode] || null,
+      iata: carrierCode,
     },
     status: status || entry.status || null,
     departure: {
@@ -148,7 +169,9 @@ function mapAmadeusEntry(entry: any): FlightStatusInfo {
         terminal: depPoint.departure?.terminal?.code,
         gate: depPoint.departure?.gate?.mainGate,
       },
-      scheduledTime: depPoint.departure?.timings?.find((t: any) => t.qualifier === 'STD')?.value,
+      scheduledTime: scheduledDep,
+      estimatedTime: depPoint.departure?.timings?.find((t: any) => t.qualifier === 'ETD')?.value || scheduledDep,
+      actualTime: depPoint.departure?.timings?.find((t: any) => t.qualifier === 'ATD')?.value,
       delayMinutes: depDelay ? parseInt(depDelay.replace('PT', '').replace('M', '')) : null,
     },
     arrival: {
@@ -157,7 +180,9 @@ function mapAmadeusEntry(entry: any): FlightStatusInfo {
         terminal: arrPoint.arrival?.terminal?.code,
         gate: arrPoint.arrival?.gate?.mainGate,
       },
-      scheduledTime: arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'STA')?.value,
+      scheduledTime: scheduledArr,
+      estimatedTime: arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'ETA')?.value || scheduledArr,
+      actualTime: arrPoint.arrival?.timings?.find((t: any) => t.qualifier === 'ATA')?.value,
       delayMinutes: arrDelay ? parseInt(arrDelay.replace('PT', '').replace('M', '')) : null,
     },
     lastUpdated: new Date().toISOString(),
