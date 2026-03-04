@@ -55,8 +55,14 @@ async function getAmadeusToken(clientId: string, clientSecret: string): Promise<
 
 function normalizeFlightNumber(flightNumber: string): { carrierCode: string; flightNumber: string; full: string } {
   const full = flightNumber.replace(/\s+/g, '').toUpperCase()
-  const match = full.match(/^([A-Z0-9]{2,3})(\d{1,4})$/)
+  // Look for 2-3 letters at the start, followed by digits
+  const match = full.match(/^([A-Z]{2,3})(\d{1,4})$/)
   if (!match) {
+    // Fallback: if it's already something like U21631, try to split it manually
+    const manualMatch = full.match(/^([A-Z][0-9A-Z])(\d{1,4})$/)
+    if (manualMatch) {
+      return { carrierCode: manualMatch[1], flightNumber: manualMatch[2], full }
+    }
     return { carrierCode: '', flightNumber: full, full }
   }
   return { carrierCode: match[1], flightNumber: match[2], full }
