@@ -53,6 +53,21 @@ export const PRICING_TIER_DEFAULTS = {
       { minKm: 65, maxKm: 79.99, price: 230, sortOrder: 8 },
     ] as PricingTierDefault[],
   },
+  sClass: {
+    vehicleTypeId: 'mercedes-s-class',
+    aboveMaxKmBasePrice: 335,
+    aboveMaxKmPerKm: 4.5,
+    tiers: [
+      { minKm: 0, maxKm: 4.99, price: 95, sortOrder: 1 },
+      { minKm: 5, maxKm: 14.99, price: 105, sortOrder: 2 },
+      { minKm: 15, maxKm: 24.99, price: 160, sortOrder: 3 },
+      { minKm: 25, maxKm: 35.99, price: 215, sortOrder: 4 },
+      { minKm: 36, maxKm: 44.99, price: 230, sortOrder: 5 },
+      { minKm: 45, maxKm: 54.99, price: 300, sortOrder: 6 },
+      { minKm: 55, maxKm: 64.99, price: 310, sortOrder: 7 },
+      { minKm: 65, maxKm: 79.99, price: 360, sortOrder: 8 },
+    ] as PricingTierDefault[],
+  },
 } as const
 
 /**
@@ -90,9 +105,24 @@ export const PRICING_TIER_DEFAULTS_MONACO = {
       { minKm: 65, maxKm: 79.99, price: 230, sortOrder: 8 },
     ] as PricingTierDefault[],
   },
+  sClass: {
+    vehicleTypeId: 'mercedes-s-class',
+    aboveMaxKmBasePrice: 335,
+    aboveMaxKmPerKm: 4.5,
+    tiers: [
+      { minKm: 0, maxKm: 4.99, price: 130, sortOrder: 1 },
+      { minKm: 5, maxKm: 14.99, price: 140, sortOrder: 2 },
+      { minKm: 15, maxKm: 24.99, price: 195, sortOrder: 3 },
+      { minKm: 25, maxKm: 35.99, price: 215, sortOrder: 4 },
+      { minKm: 36, maxKm: 44.99, price: 230, sortOrder: 5 },
+      { minKm: 45, maxKm: 54.99, price: 300, sortOrder: 6 },
+      { minKm: 55, maxKm: 64.99, price: 310, sortOrder: 7 },
+      { minKm: 65, maxKm: 79.99, price: 360, sortOrder: 8 },
+    ] as PricingTierDefault[],
+  },
 } as const
 
-export type VehiclePricingVariant = 'eClass' | 'vClass'
+export type VehiclePricingVariant = 'eClass' | 'vClass' | 'sClass'
 
 /** Détecte si le lieu de prise en charge est Monaco (pour appliquer la grille Monaco). */
 export function isPickupFromMonaco(
@@ -111,9 +141,11 @@ export function getMonacoPricingForVehicle(vehicleTypeId: string): {
   minimumFare: number
 } {
   const id = (vehicleTypeId || '').toLowerCase()
-  const config = id.includes('v-class') || id.includes('vclass')
+  const config = (id.includes('v-class') || id.includes('vclass'))
     ? PRICING_TIER_DEFAULTS_MONACO.vClass
-    : PRICING_TIER_DEFAULTS_MONACO.eClass
+    : (id.includes('s-class') || id.includes('sclass'))
+      ? PRICING_TIER_DEFAULTS_MONACO.sClass
+      : PRICING_TIER_DEFAULTS_MONACO.eClass
   const vtId = config.vehicleTypeId
   return {
     tiers: toPricingTiers(config.tiers, vtId),
