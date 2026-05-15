@@ -124,12 +124,17 @@ export const PRICING_TIER_DEFAULTS_MONACO = {
 
 export type VehiclePricingVariant = 'eClass' | 'vClass' | 'sClass'
 
-/** Détecte si le lieu de prise en charge est Monaco (pour appliquer la grille Monaco). */
+/** Détecte si le lieu de prise en charge OU de destination est Monaco (pour appliquer la grille Monaco). */
 export function isPickupFromMonaco(
   pickupLocation?: string | null,
-  pickupAddress?: string | null
+  pickupAddress?: string | null,
+  dropoffLocation?: string | null,
+  dropoffAddress?: string | null
 ): boolean {
-  const text = [pickupLocation, pickupAddress].filter(Boolean).join(' ').toLowerCase()
+  const text = [pickupLocation, pickupAddress, dropoffLocation, dropoffAddress]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
   return /monaco|mc\s*\d{3}|98000/.test(text)
 }
 
