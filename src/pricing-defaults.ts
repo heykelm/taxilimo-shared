@@ -82,9 +82,9 @@ export const PRICING_TIER_DEFAULTS_MONACO = {
     tiers: [
       { minKm: 0, maxKm: 4.99, price: 90, sortOrder: 1 },
       { minKm: 5, maxKm: 14.99, price: 90, sortOrder: 2 },
-      { minKm: 15, maxKm: 24.99, price: 110, sortOrder: 3 },
-      { minKm: 25, maxKm: 35.99, price: 130, sortOrder: 4 },
-      { minKm: 36, maxKm: 44.99, price: 150, sortOrder: 5 },
+      { minKm: 15, maxKm: 24.99, price: 120, sortOrder: 3 },
+      { minKm: 25, maxKm: 35.99, price: 140, sortOrder: 4 },
+      { minKm: 36, maxKm: 44.99, price: 160, sortOrder: 5 },
       { minKm: 45, maxKm: 54.99, price: 180, sortOrder: 6 },
       { minKm: 55, maxKm: 64.99, price: 210, sortOrder: 7 },
       { minKm: 65, maxKm: 79.99, price: 250, sortOrder: 8 },
