@@ -1,7 +1,9 @@
 /**
- * Message devis copier-coller (WhatsApp / email) + lien court /r?…
+ * Message devis copier-coller (WhatsApp / email) + lien court /r/q/…
  * Utilisé par blacklimousinetransfers.com et nicetaxilimo.com.
  */
+
+import { encodeBookingQuoteToken } from './booking-quote-token'
 
 export type BookingQuoteLang = 'fr' | 'en'
 
@@ -201,13 +203,13 @@ export function quoteLocationFromPrefill(
   latStr: string | null | undefined,
   lngStr: string | null | undefined
 ): { address: string; lat: number; lng: number } | null {
-  const trimmed = address?.trim()
-  if (!trimmed) return null
   const lat = parseQuoteCoordParam(latStr)
   const lng = parseQuoteCoordParam(lngStr)
+  const trimmed = address?.trim()
   if (isValidQuoteCoord(lat, lng)) {
-    return { address: trimmed, lat: lat!, lng: lng! }
+    return { address: trimmed || '', lat: lat!, lng: lng! }
   }
+  if (!trimmed) return null
   return { address: trimmed, lat: 0, lng: 0 }
 }
 
@@ -226,6 +228,9 @@ export function buildBookingQuoteUrl(input: {
   siteOrigin?: string
 }): string {
   const origin = (input.siteOrigin || 'https://blacklimousinetransfers.com').replace(/\/$/, '')
+  const token = encodeBookingQuoteToken(input)
+  if (token) return `${origin}/r/q/${token}`
+
   const params = new URLSearchParams()
   if (input.pickupAddress?.trim()) params.set('pickup', input.pickupAddress.trim())
   if (input.dropoffAddress?.trim()) params.set('dropoff', input.dropoffAddress.trim())
@@ -304,7 +309,10 @@ export function buildBookingQuoteMessage(input: BuildBookingQuoteInput): string 
     siteOrigin: input.siteOrigin,
   })
 
-  return [routeLine, dateLine, metaLine, priceLine, `👉 ${link}`].filter(Boolean).join('\n')
+  const linkLine =
+    lang === 'en' ? `👉 Book online:\n${link}` : `👉 Réserver en ligne :\n${link}`
+
+  return [routeLine, dateLine, metaLine, priceLine, linkLine].filter(Boolean).join('\n')
 }
 
 export async function copyBookingQuoteMessage(message: string): Promise<boolean> {
