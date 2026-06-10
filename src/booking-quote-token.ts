@@ -4,7 +4,6 @@
  */
 
 import type { BookingQuoteServiceType } from './booking-quote-message'
-import { vehicleIdForQuoteUrl } from './booking-quote-message'
 
 const TOKEN_VERSION = '1'
 
@@ -31,6 +30,20 @@ type EncodeInput = {
   serviceType?: BookingQuoteServiceType
 }
 
+/** Local copy — avoid circular import from booking-quote-message. */
+function resolveVehicleIdForToken(
+  vehicleId?: string | null,
+  typeCode?: string | null
+): string | undefined {
+  const id = (vehicleId || '').toLowerCase()
+  if (id.includes('mercedes') || id.includes('van') || id.includes('class')) return vehicleId!
+  const code = (typeCode || id || '').toLowerCase()
+  if (code === 'van' || code === 'van_xl') return 'mercedes-v-class'
+  if (code === 'premium' || code === 'first') return 'mercedes-s-class'
+  if (code === 'business') return 'mercedes-e-class'
+  return vehicleId || typeCode || undefined
+}
+
 function isValidCoord(lat?: number, lng?: number): boolean {
   return (
     lat != null &&
@@ -46,7 +59,7 @@ function roundCoord(n: number): number {
 }
 
 function vehicleToTokenChar(vehicleId?: string | null, typeCode?: string | null): string {
-  const id = vehicleIdForQuoteUrl(vehicleId, typeCode)?.toLowerCase() || ''
+  const id = resolveVehicleIdForToken(vehicleId, typeCode)?.toLowerCase() || ''
   if (id.includes('v-class') || id.includes('van')) return 'v'
   if (id.includes('s-class') || id.includes('premium') || id.includes('first')) return 's'
   if (id.includes('e-class') || id.includes('business')) return 'e'

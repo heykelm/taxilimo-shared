@@ -26,5 +26,5 @@ export * from './validations/booking'
 export * from './pricing-defaults'
 
 // Booking quote copy-paste (WhatsApp / email)
-export * from './booking-quote-message'
 export * from './booking-quote-token'
+export * from './booking-quote-message'

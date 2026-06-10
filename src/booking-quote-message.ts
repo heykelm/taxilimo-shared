@@ -228,8 +228,12 @@ export function buildBookingQuoteUrl(input: {
   siteOrigin?: string
 }): string {
   const origin = (input.siteOrigin || 'https://blacklimousinetransfers.com').replace(/\/$/, '')
-  const token = encodeBookingQuoteToken(input)
-  if (token) return `${origin}/r/q/${token}`
+  try {
+    const token = encodeBookingQuoteToken(input)
+    if (token) return `${origin}/r/q/${token}`
+  } catch {
+    // Fall back to query-string URL if token encoding fails at runtime.
+  }
 
   const params = new URLSearchParams()
   if (input.pickupAddress?.trim()) params.set('pickup', input.pickupAddress.trim())
@@ -316,10 +320,28 @@ export function buildBookingQuoteMessage(input: BuildBookingQuoteInput): string 
 }
 
 export async function copyBookingQuoteMessage(message: string): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false
+  if (typeof document === 'undefined') return false
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(message)
+      return true
+    } catch {
+      // Fall through to execCommand fallback (Safari / older browsers).
+    }
+  }
+
   try {
-    await navigator.clipboard.writeText(message)
-    return true
+    const textarea = document.createElement('textarea')
+    textarea.value = message
+    textarea.setAttribute('readonly', 'true')
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
   } catch {
     return false
   }
