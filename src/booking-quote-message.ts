@@ -179,9 +179,45 @@ export function vehicleIdForQuoteUrl(
   return vehicleId || typeCode || undefined
 }
 
+function isValidQuoteCoord(lat?: number, lng?: number): boolean {
+  return (
+    lat != null &&
+    lng != null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    !(lat === 0 && lng === 0)
+  )
+}
+
+export function parseQuoteCoordParam(value: string | null | undefined): number | undefined {
+  if (value == null || value === '') return undefined
+  const n = parseFloat(value)
+  return Number.isFinite(n) ? n : undefined
+}
+
+/** Restore pickup/dropoff from /r or /booking query (address + optional lat/lng). */
+export function quoteLocationFromPrefill(
+  address: string | null | undefined,
+  latStr: string | null | undefined,
+  lngStr: string | null | undefined
+): { address: string; lat: number; lng: number } | null {
+  const trimmed = address?.trim()
+  if (!trimmed) return null
+  const lat = parseQuoteCoordParam(latStr)
+  const lng = parseQuoteCoordParam(lngStr)
+  if (isValidQuoteCoord(lat, lng)) {
+    return { address: trimmed, lat: lat!, lng: lng! }
+  }
+  return { address: trimmed, lat: 0, lng: 0 }
+}
+
 export function buildBookingQuoteUrl(input: {
   pickupAddress?: string
   dropoffAddress?: string
+  pickupLat?: number
+  pickupLng?: number
+  dropoffLat?: number
+  dropoffLng?: number
   pickupDate?: string
   pickupTime?: string
   vehicleTypeCode?: string
@@ -193,6 +229,14 @@ export function buildBookingQuoteUrl(input: {
   const params = new URLSearchParams()
   if (input.pickupAddress?.trim()) params.set('pickup', input.pickupAddress.trim())
   if (input.dropoffAddress?.trim()) params.set('dropoff', input.dropoffAddress.trim())
+  if (isValidQuoteCoord(input.pickupLat, input.pickupLng)) {
+    params.set('pickupLat', String(input.pickupLat))
+    params.set('pickupLng', String(input.pickupLng))
+  }
+  if (isValidQuoteCoord(input.dropoffLat, input.dropoffLng)) {
+    params.set('dropoffLat', String(input.dropoffLat))
+    params.set('dropoffLng', String(input.dropoffLng))
+  }
   if (input.pickupDate?.trim()) params.set('date', input.pickupDate.trim())
   if (input.pickupTime?.trim()) params.set('time', input.pickupTime.trim())
   const vehicle = vehicleIdForQuoteUrl(input.vehicleId, input.vehicleTypeCode)
@@ -246,8 +290,12 @@ export function buildBookingQuoteMessage(input: BuildBookingQuoteInput): string 
       : ''
 
   const link = buildBookingQuoteUrl({
-    pickupAddress: pickupArea || pickupRaw,
-    dropoffAddress: isHourly ? undefined : dropoffArea || dropRaw || undefined,
+    pickupAddress: pickupRaw,
+    dropoffAddress: isHourly ? undefined : dropRaw || undefined,
+    pickupLat: input.pickupLocation?.lat,
+    pickupLng: input.pickupLocation?.lng,
+    dropoffLat: input.dropoffLocation?.lat,
+    dropoffLng: input.dropoffLocation?.lng,
     pickupDate: input.pickupDate,
     pickupTime: input.pickupTime,
     vehicleTypeCode: input.selectedVehicle?.typeCode || undefined,
