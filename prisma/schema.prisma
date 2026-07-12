@@ -48,68 +48,68 @@ model AdminSession {
 }
 
 model Booking {
-  id                 String        @id @default(cuid())
-  bookingNumber      String        @unique
-  customerId         String?
-  customerName       String
-  customerEmail      String
-  customerPhone      String
-  customerAddress    String?
-  serviceType        ServiceType   @default(CITY_RIDE)
-  tripType           TripType      @default(ONE_WAY)
-  vehicleTypeId      String
-  vehicleId          String?
-  driverId           String?
-  adults             Int?
-  children           Int?
-  durationHours      Int?
-  agreedToTerms      Boolean       @default(false)
-  pickupLocation     String
-  pickupAddress      String
-  pickupLat          Float?
-  pickupLng          Float?
-  pickupDate         DateTime
-  pickupTime         String
-  dropoffLocation    String
-  dropoffAddress     String
-  dropoffLat         Float?
-  dropoffLng         Float?
-  dropoffDate        DateTime?
-  dropoffTime        String?
-  distance           Float?
-  duration           Int?
-  estimatedPrice     Float
-  finalPrice         Float?
-  promoCode          String?
-  discountAmount     Float?
-  discountPercent    Float?
-  passengers         Int           @default(1)
-  luggage            Int           @default(0)
-  flightNumber       String?
-  flightStatus       Json?
+  id                    String        @id @default(cuid())
+  bookingNumber         String        @unique
+  customerId            String?
+  customerName          String
+  customerEmail         String
+  customerPhone         String
+  customerAddress       String?
+  serviceType           ServiceType   @default(CITY_RIDE)
+  tripType              TripType      @default(ONE_WAY)
+  vehicleTypeId         String
+  vehicleId             String?
+  driverId              String?
+  adults                Int?
+  children              Int?
+  durationHours         Int?
+  agreedToTerms         Boolean       @default(false)
+  pickupLocation        String
+  pickupAddress         String
+  pickupLat             Float?
+  pickupLng             Float?
+  pickupDate            DateTime
+  pickupTime            String
+  dropoffLocation       String
+  dropoffAddress        String
+  dropoffLat            Float?
+  dropoffLng            Float?
+  dropoffDate           DateTime?
+  dropoffTime           String?
+  distance              Float?
+  duration              Int?
+  estimatedPrice        Float
+  finalPrice            Float?
+  promoCode             String?
+  discountAmount        Float?
+  discountPercent       Float?
+  passengers            Int           @default(1)
+  luggage               Int           @default(0)
+  flightNumber          String?
+  flightStatus          Json?
   flightStatusUpdatedAt DateTime?
-  specialRequests    String?
-  notes              String?
-  language           String        @default("fr")
-  sourcePlatform     String?
-  status             BookingStatus @default(PENDING)
-  paymentStatus      PaymentStatus @default(PENDING)
-  paymentMethod      String?
-  stripeSessionId    String?
-  calendarEventId    String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  confirmedAt        DateTime?
-  completedAt        DateTime?
-  cancelledAt        DateTime?
-  cancellationReason String?
-  user               User?         @relation(fields: [customerId], references: [id])
-  driver             Driver?       @relation(fields: [driverId], references: [id])
-  vehicle            Vehicle?      @relation(fields: [vehicleId], references: [id])
-  vehicleType        VehicleType   @relation(fields: [vehicleTypeId], references: [id])
-  EmailLog           EmailLog[]
-  invoice            Invoice?
-  quote              Quote?
+  specialRequests       String?
+  notes                 String?
+  language              String        @default("fr")
+  sourcePlatform        String?
+  status                BookingStatus @default(PENDING)
+  paymentStatus         PaymentStatus @default(PENDING)
+  paymentMethod         String?
+  stripeSessionId       String?
+  calendarEventId       String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  confirmedAt           DateTime?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  user                  User?         @relation(fields: [customerId], references: [id])
+  driver                Driver?       @relation(fields: [driverId], references: [id])
+  vehicle               Vehicle?      @relation(fields: [vehicleId], references: [id])
+  vehicleType           VehicleType   @relation(fields: [vehicleTypeId], references: [id])
+  EmailLog              EmailLog[]
+  invoice               Invoice?
+  quote                 Quote?
 
   @@index([bookingNumber])
   @@index([customerId])
@@ -252,6 +252,20 @@ model PricingTier {
   vehicleType   VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Cascade)
 
   @@index([vehicleTypeId, minKm, maxKm])
+}
+
+model PricingAdjustment {
+  id               String   @id @default(cuid())
+  name             String
+  startDate        String
+  endDate          String
+  rideMultiplier   Float    @default(1)
+  hourlyMultiplier Float    @default(1)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive, startDate, endDate])
 }
 
 model PromoCode {

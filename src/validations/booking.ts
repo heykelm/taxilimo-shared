@@ -41,6 +41,12 @@ export const createBookingSchema = z.object({
   requiresDeposit: z.boolean().optional(),
   discountAmount: z.union([z.number().min(0), z.null()]).optional(),
   discountPercent: z.union([z.number().min(0).max(100), z.null()]).optional(),
+  // Attribution / UTM tracking (read from URL params at booking time, stored for Google Ads attribution)
+  utmSource: z.union([z.string().max(200).trim(), z.null()]).optional(),
+  utmMedium: z.union([z.string().max(200).trim(), z.null()]).optional(),
+  utmCampaign: z.union([z.string().max(200).trim(), z.null()]).optional(),
+  utmContent: z.union([z.string().max(200).trim(), z.null()]).optional(),
+  gclid: z.union([z.string().max(500).trim(), z.null()]).optional(),
 }).refine(
   (data) => {
     // Hourly hire requires durationHours and agreedToTerms

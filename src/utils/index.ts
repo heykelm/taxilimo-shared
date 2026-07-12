@@ -1,6 +1,7 @@
 // Shared utilities
 
 import type { PricingTier } from '../types'
+import { resolvePricingAdjustment, type PricingAdjustmentRule } from './pricing-adjustment'
 
 // Generate booking number
 export function generateBookingNumber(prefix: string = "BK"): string {
@@ -48,6 +49,8 @@ export interface PriceCalculationParams {
   serviceTypeMultiplier?: number
   serviceFeeRate?: number
   aboveMaxKmThreshold?: number
+  pickupDate?: string | Date | null
+  pricingAdjustments?: PricingAdjustmentRule[] | null
 }
 
 export type TripType = 'ONE_WAY' | 'ROUND_TRIP' | 'RETURN_NEW_RIDE' | 'HOURLY'
@@ -91,6 +94,9 @@ export interface BookingEstimatedPriceInput {
   serviceTypeMultiplier?: number
   serviceFeeRate?: number
   aboveMaxKmThreshold?: number
+  pickupDate?: string | Date | null
+  returnLegPickupDate?: string | Date | null
+  pricingAdjustments?: PricingAdjustmentRule[] | null
 }
 
 function roundPrice(amount: number): number {
@@ -154,6 +160,9 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
     serviceTypeMultiplier,
     serviceFeeRate,
     aboveMaxKmThreshold,
+    pickupDate,
+    returnLegPickupDate,
+    pricingAdjustments,
   } = input
 
   const oneWayTotal = calculatePrice({
@@ -170,6 +179,8 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
     serviceTypeMultiplier,
     serviceFeeRate,
     aboveMaxKmThreshold,
+    pickupDate,
+    pricingAdjustments,
   })
 
   if (tripType === 'ROUND_TRIP') {
@@ -191,6 +202,8 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
       serviceTypeMultiplier,
       serviceFeeRate,
       aboveMaxKmThreshold,
+      pickupDate: returnLegPickupDate ?? pickupDate,
+      pricingAdjustments,
     })
     return roundPrice(oneWayTotal + returnTotal)
   }
@@ -226,6 +239,8 @@ export function calculatePrice(params: PriceCalculationParams): number {
     serviceTypeMultiplier,
     serviceFeeRate,
     aboveMaxKmThreshold,
+    pickupDate,
+    pricingAdjustments,
   } = params
 
   let priceHT = 0
@@ -250,7 +265,8 @@ export function calculatePrice(params: PriceCalculationParams): number {
   }
 
   const priceBeforeFee = Math.max(priceHT, minimumFare)
-  const priceWithMultiplier = priceBeforeFee * (serviceTypeMultiplier ?? 1)
+  const eventMultiplier = resolvePricingAdjustment(serviceType, pickupDate, pricingAdjustments).multiplier
+  const priceWithMultiplier = priceBeforeFee * (serviceTypeMultiplier ?? 1) * eventMultiplier
   return applyServiceFee(priceWithMultiplier, serviceFeeRate)
 }
 
@@ -274,4 +290,4 @@ export function calculateTripPriceWithTiers(
 }
 
 export * from './flight-tracker'
-
+export * from './pricing-adjustment'
