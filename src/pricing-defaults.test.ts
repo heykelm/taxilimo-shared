@@ -61,7 +61,7 @@ describe('Monaco pricing', () => {
       aboveMaxKmThreshold: undefined,
     }
 
-    it('Monaco → Nice 20.6 km: E 89.25 → 94.50, V 115.50 → 115.50', () => {
+    it('Monaco → Nice 20.6 km: E 89 → 95, V 116 → 116', () => {
       const dist = 20.6
       const eStandard = calculateBookingEstimatedPrice({
         ...baseInput,
@@ -99,13 +99,13 @@ describe('Monaco pricing', () => {
         aboveMaxKmPerKm: PRICING_TIER_DEFAULTS_MONACO.vClass.aboveMaxKmPerKm,
         pricingTiers: toTiers(PRICING_TIER_DEFAULTS_MONACO.vClass),
       })
-      expect(eStandard).toBe(89.25)
-      expect(eMonaco).toBe(94.5)
-      expect(vStandard).toBe(115.5)
-      expect(vMonaco).toBe(115.5)
+      expect(eStandard).toBe(89)
+      expect(eMonaco).toBe(126) // Monaco E tier 15-24.99 = 120 + 5%
+      expect(vStandard).toBe(116)
+      expect(vMonaco).toBe(137) // Monaco V tier 15-24.99 = 130 + 5%
     })
 
-    it('Monaco → Villefranche 16.3 km: E 89.25 → 94.50, V 115.50 → 115.50', () => {
+    it('Monaco → Villefranche 16.3 km: E 89 → 126, V 116 → 116', () => {
       const dist = 16.3
       const eStandard = calculateBookingEstimatedPrice({
         ...baseInput,
@@ -143,10 +143,10 @@ describe('Monaco pricing', () => {
         aboveMaxKmPerKm: PRICING_TIER_DEFAULTS_MONACO.vClass.aboveMaxKmPerKm,
         pricingTiers: toTiers(PRICING_TIER_DEFAULTS_MONACO.vClass),
       })
-      expect(eStandard).toBe(89.25)
-      expect(eMonaco).toBe(94.5)
-      expect(vStandard).toBe(115.5)
-      expect(vMonaco).toBe(115.5)
+      expect(eStandard).toBe(89)
+      expect(eMonaco).toBe(126) // Monaco E tier 15-24.99 = 120 + 5%
+      expect(vStandard).toBe(116)
+      expect(vMonaco).toBe(137) // Monaco V tier 15-24.99 = 130 + 5%
     })
 
     it('Monaco → Cap-d\'Ail 3.1 km: E 57.75 → 94.50, V 78.75 → 115.50', () => {
@@ -187,10 +187,10 @@ describe('Monaco pricing', () => {
         aboveMaxKmPerKm: PRICING_TIER_DEFAULTS_MONACO.vClass.aboveMaxKmPerKm,
         pricingTiers: toTiers(PRICING_TIER_DEFAULTS_MONACO.vClass),
       })
-      expect(eStandard).toBe(57.75)
-      expect(eMonaco).toBe(94.5)
-      expect(vStandard).toBe(78.75)
-      expect(vMonaco).toBe(115.5)
+      expect(eStandard).toBe(58)
+      expect(eMonaco).toBe(95)
+      expect(vStandard).toBe(79)
+      expect(vMonaco).toBe(116)
     })
 
     it('Nice → Cannes 33.1 km (grille standard uniquement)', () => {
@@ -213,8 +213,8 @@ describe('Monaco pricing', () => {
         aboveMaxKmPerKm: PRICING_TIER_DEFAULTS.vClass.aboveMaxKmPerKm,
         pricingTiers: toTiers(PRICING_TIER_DEFAULTS.vClass),
       })
-      expect(eStandard).toBe(110.25)
-      expect(vStandard).toBe(136.5)
+      expect(eStandard).toBe(110)
+      expect(vStandard).toBe(137)
     })
 
     it('Au-delà de 80 km: Monaco E 230 + 2.5/km, V 230 + 3/km', () => {
@@ -240,7 +240,7 @@ describe('Monaco pricing', () => {
       // E: 230 + (100-80)*2.5 = 230 + 50 = 280 HT → 294 TTC
       // V: 230 + (100-80)*3 = 230 + 60 = 290 HT → 304.50 TTC
       expect(eMonaco).toBe(294)
-      expect(vMonaco).toBe(304.5)
+      expect(vMonaco).toBe(305)
     })
   })
 })

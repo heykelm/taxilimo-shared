@@ -16,9 +16,15 @@ export function generateBookingNumber(prefix: string = "BK"): string {
 
 const SERVICE_FEE_RATE = 0.05
 
+/** Customer-facing totals are whole euros (matches formatPrice / what the client pays). */
+export function roundToEuro(amount: number): number {
+  return Math.round(amount)
+}
+
 function applyServiceFee(priceBeforeFee: number, serviceFeeRate: number = SERVICE_FEE_RATE): number {
   const priceTTC = priceBeforeFee + priceBeforeFee * serviceFeeRate
-  return Math.round(priceTTC * 100) / 100 // Round to 2 decimal places
+  // Keep cent precision for intermediate legs; final payable total is rounded via roundToEuro.
+  return Math.round(priceTTC * 100) / 100
 }
 
 function selectTierPrice(distance: number, tiers: PricingTier[]): number | null {
@@ -100,7 +106,7 @@ export interface BookingEstimatedPriceInput {
 }
 
 function roundPrice(amount: number): number {
-  return Math.round(amount * 100) / 100
+  return roundToEuro(amount)
 }
 
 export function applyTripTypePricing(input: TripTypePricingInput): TripTypePricingOutput {
@@ -115,9 +121,9 @@ export function applyTripTypePricing(input: TripTypePricingInput): TripTypePrici
     const distanceCharge = input.oneWay.distanceCharge * 2
     const subtotal = input.oneWay.subtotal * 2
     const serviceFee = subtotal * serviceFeeRate
-    const total = subtotal + serviceFee
+    const total = roundToEuro(subtotal + serviceFee)
 
-    return { basePrice, distanceCharge, subtotal, serviceFee, total }
+    return { basePrice, distanceCharge, subtotal, serviceFee: roundToEuro(total - subtotal), total }
   }
 
   if (input.tripType === 'RETURN_NEW_RIDE' && input.returnWay) {
@@ -125,20 +131,20 @@ export function applyTripTypePricing(input: TripTypePricingInput): TripTypePrici
     const distanceCharge = input.oneWay.distanceCharge + input.returnWay.distanceCharge
     const subtotal = input.oneWay.subtotal + input.returnWay.subtotal
     const serviceFee = subtotal * serviceFeeRate
-    const total = subtotal + serviceFee
+    const total = roundToEuro(subtotal + serviceFee)
 
-    return { basePrice, distanceCharge, subtotal, serviceFee, total }
+    return { basePrice, distanceCharge, subtotal, serviceFee: roundToEuro(total - subtotal), total }
   }
 
   const subtotal = input.oneWay.subtotal
   const serviceFee = subtotal * serviceFeeRate
-  const total = subtotal + serviceFee
+  const total = roundToEuro(subtotal + serviceFee)
 
   return {
     basePrice: input.oneWay.basePrice,
     distanceCharge: input.oneWay.distanceCharge,
     subtotal,
-    serviceFee,
+    serviceFee: roundToEuro(total - subtotal),
     total,
   }
 }
@@ -187,25 +193,36 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
     return roundPrice(oneWayTotal * 2)
   }
 
-  if (tripType === 'RETURN_NEW_RIDE' && typeof returnDistance === 'number') {
-    const returnTotal = calculatePrice({
-      distance: returnDistance,
-      serviceType,
-      basePrice,
-      pricePerKm,
-      minimumFare,
-      perHourRate,
-      durationHours,
-      aboveMaxKmBasePrice,
-      aboveMaxKmPerKm,
-      pricingTiers,
-      serviceTypeMultiplier,
-      serviceFeeRate,
-      aboveMaxKmThreshold,
-      pickupDate: returnLegPickupDate ?? pickupDate,
-      pricingAdjustments,
-    })
-    return roundPrice(oneWayTotal + returnTotal)
+  // RETURN_NEW_RIDE = outbound + return. If returnDistance is missing (Maps lag /
+  // client omit), fall back to outbound distance so we never undercharge as one-way.
+  if (tripType === 'RETURN_NEW_RIDE') {
+    const effectiveReturnDistance =
+      typeof returnDistance === 'number' && Number.isFinite(returnDistance)
+        ? returnDistance
+        : typeof distance === 'number' && Number.isFinite(distance)
+          ? distance
+          : null
+
+    if (effectiveReturnDistance != null) {
+      const returnTotal = calculatePrice({
+        distance: effectiveReturnDistance,
+        serviceType,
+        basePrice,
+        pricePerKm,
+        minimumFare,
+        perHourRate,
+        durationHours,
+        aboveMaxKmBasePrice,
+        aboveMaxKmPerKm,
+        pricingTiers,
+        serviceTypeMultiplier,
+        serviceFeeRate,
+        aboveMaxKmThreshold,
+        pickupDate: returnLegPickupDate ?? pickupDate,
+        pricingAdjustments,
+      })
+      return roundPrice(oneWayTotal + returnTotal)
+    }
   }
 
   return roundPrice(oneWayTotal)
