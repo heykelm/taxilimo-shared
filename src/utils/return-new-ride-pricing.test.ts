@@ -25,8 +25,8 @@ describe('RETURN_NEW_RIDE pricing', () => {
       tripType: 'RETURN_NEW_RIDE',
       returnDistance: 11.971,
     })
-    // 70+70 = 140 + 5% = 147 → round to euro
-    expect(withReturn).toBe(147)
+    // Each leg 70 + 5% = 73.5 → 74 €; payable = 74 + 74 = 148 (not round(147)=147)
+    expect(withReturn).toBe(148)
   })
 
   it('falls back to outbound distance when returnDistance is missing', () => {
@@ -40,8 +40,8 @@ describe('RETURN_NEW_RIDE pricing', () => {
       tripType: 'RETURN_NEW_RIDE',
       returnDistance: null,
     })
-    expect(missingReturn).toBe(147)
-    expect(missingReturn).toBeGreaterThan(oneWay)
+    expect(missingReturn).toBe(148)
+    expect(missingReturn).toBe(oneWay * 2)
   })
 
   it('rounds ONE_WAY TTC to whole euros', () => {

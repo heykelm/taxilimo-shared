@@ -117,21 +117,24 @@ export function applyTripTypePricing(input: TripTypePricingInput): TripTypePrici
   }
 
   if (input.tripType === 'ROUND_TRIP') {
+    // Round each leg to whole euros first (so 73.50 → 74), then ×2 → 148, not round(147)=147.
+    const oneWayTotal = roundToEuro(input.oneWay.subtotal * (1 + serviceFeeRate))
     const basePrice = input.oneWay.basePrice * 2
     const distanceCharge = input.oneWay.distanceCharge * 2
     const subtotal = input.oneWay.subtotal * 2
-    const serviceFee = subtotal * serviceFeeRate
-    const total = roundToEuro(subtotal + serviceFee)
+    const total = oneWayTotal * 2
 
     return { basePrice, distanceCharge, subtotal, serviceFee: roundToEuro(total - subtotal), total }
   }
 
   if (input.tripType === 'RETURN_NEW_RIDE' && input.returnWay) {
+    // Same rule: payable = rounded(aller) + rounded(retour), never round(combined TTC).
+    const oneWayTotal = roundToEuro(input.oneWay.subtotal * (1 + serviceFeeRate))
+    const returnTotal = roundToEuro(input.returnWay.subtotal * (1 + serviceFeeRate))
     const basePrice = input.oneWay.basePrice + input.returnWay.basePrice
     const distanceCharge = input.oneWay.distanceCharge + input.returnWay.distanceCharge
     const subtotal = input.oneWay.subtotal + input.returnWay.subtotal
-    const serviceFee = subtotal * serviceFeeRate
-    const total = roundToEuro(subtotal + serviceFee)
+    const total = oneWayTotal + returnTotal
 
     return { basePrice, distanceCharge, subtotal, serviceFee: roundToEuro(total - subtotal), total }
   }
@@ -190,7 +193,8 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
   })
 
   if (tripType === 'ROUND_TRIP') {
-    return roundPrice(oneWayTotal * 2)
+    // Round the one-way payable first, then double (74×2=148, not round(73.5×2)=147).
+    return roundPrice(oneWayTotal) * 2
   }
 
   // RETURN_NEW_RIDE = outbound + return. If returnDistance is missing (Maps lag /
@@ -221,7 +225,7 @@ export function calculateBookingEstimatedPrice(input: BookingEstimatedPriceInput
         pickupDate: returnLegPickupDate ?? pickupDate,
         pricingAdjustments,
       })
-      return roundPrice(oneWayTotal + returnTotal)
+      return roundPrice(oneWayTotal) + roundPrice(returnTotal)
     }
   }
 
